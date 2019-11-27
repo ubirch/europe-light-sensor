@@ -1,8 +1,13 @@
+import json
+from time import sleep
+from uuid import UUID
+
+import machine
+import pycom
+import wifi
 from machine import I2C
 from machine import Pin
-from time import sleep
-import binascii
-import pycom
+from mqtt import MQTTClient
 
 sda = Pin('P22', mode=Pin.IN)
 scl = Pin('P21', mode=Pin.IN)
@@ -31,6 +36,21 @@ def main():
     print(addr)
     # i2c.writeto(0x42, 'hello') # send 5 bytes to slave with address 0x42
     # bytesRead = i2c.readfrom(0x44, 5) # receive 5 bytes from slave
+
+    # generate UUID
+    uuid = UUID(b'UBIR' + 2 * machine.unique_id())
+    print("\n** UUID   : " + str(uuid) + "\n")
+
+    with open('config.json', 'r') as c:
+        cfg = json.load(c)
+
+        wifi.connect(cfg['networks'])
+        wifi.set_time()
+
+    # create MQTT client and connect
+    client = MQTTClient(str(uuid), "mqtt.eclipse.org")
+    client.connect()
+
     while True:
         bytesRead = i2c.readfrom_mem(0x44, 0x09, 6, addrsize=8)
 
@@ -46,9 +66,11 @@ def main():
         print(hex(rgb))
         pycom.rgbled(rgb)
 
+        client.publish("europelight/fuerstenberg", str(rgb))
+
         sleep(1)
-    # i2c.readfrom_mem(0x42, 0x10, 2) # read 2 bytes from slave 0x42, slave memory 0x10
-    # i2c.writeto_mem(0x42, 0x10, 'xy') # write 2 bytes to slave 0x42, slave memory 0x10
+        # i2c.readfrom_mem(0x42, 0x10, 2) # read 2 bytes from slave 0x42, slave memory 0x10
+        # i2c.writeto_mem(0x42, 0x10, 'xy') # write 2 bytes to slave 0x42, slave memory 0x10
 
 
 main()
